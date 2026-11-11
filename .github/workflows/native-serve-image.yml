@@ -1,0 +1,53 @@
+name: Native Serve image
+
+on:
+  pull_request:
+    branches: [neurwerk/3.6]
+  push:
+    tags: [native-serve-v*]
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.11.21'
+          python-version: '3.12'
+      - name: Build patched wheel
+        run: |
+          uv lock --check
+          uv build --wheel
+      - name: Set image version
+        id: version
+        shell: bash
+        run: |
+          version=1.33.0-native.1
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            test "$GITHUB_REF_NAME" = "native-serve-v${version}"
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.ref_type == 'tag'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: images/docling-serve/Containerfile
+          platforms: linux/amd64
+          push: ${{ github.ref_type == 'tag' }}
+          tags: ghcr.io/neurwerk/docling-serve-cpu:${{ steps.version.outputs.value }}
+          build-args: |
+            REVISION=${{ github.sha }}
+            VERSION=${{ steps.version.outputs.value }}

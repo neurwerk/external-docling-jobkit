@@ -1,0 +1,15 @@
+ARG BASE_IMAGE=ghcr.io/docling-project/docling-serve-cpu:v1.33.0@sha256:546cf392145a0a578f23e4250663a37a5fb727fe6b57fd163e301584ad8bc18c
+FROM ${BASE_IMAGE}
+
+ARG REVISION
+ARG VERSION
+LABEL org.opencontainers.image.source="https://github.com/neurwerk/external-docling-jobkit" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.version="${VERSION}"
+
+USER 1001
+COPY --chown=1001:0 dist/docling_jobkit-3.6.0+neurwerk.native1-py3-none-any.whl /tmp/
+RUN /opt/app-root/bin/python -m pip install --no-index --no-deps --force-reinstall \
+      /tmp/docling_jobkit-3.6.0+neurwerk.native1-py3-none-any.whl && \
+    rm /tmp/docling_jobkit-3.6.0+neurwerk.native1-py3-none-any.whl && \
+    /opt/app-root/bin/python -m pip check
