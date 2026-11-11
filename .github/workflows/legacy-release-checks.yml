@@ -1,0 +1,64 @@
+name: Legacy release base checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  legacy-base:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
+    env:
+      DOCLING_INFERENCE_COMPILE_TORCH_MODELS: '0'
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Verify trusted legacy base
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+        run: |
+          test "$EVENT" = pull_request_target
+          test "$BASE_REF" = neurwerk/3.6
+          test "$BASE_REPO" = "$GITHUB_REPOSITORY"
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+      - name: Install locked legacy dependencies
+        run: uv sync --frozen --all-extras
+      - name: Check formatting, lint, typing, and lock freshness
+        run: uv run --no-sync pre-commit run --all-files
+      - name: Launch RQ worker
+        run: |
+          uv run --no-sync python docling_jobkit/orchestrators/rq/worker.py &
+          echo "WORKER_PID=$!" >> "$GITHUB_ENV"
+      - name: Run full legacy tests
+        run: |
+          if [[ "${{ matrix.python-version }}" == "3.14" ]]; then
+            uv run --no-sync pytest -v --cov=docling_jobkit --cov-report=xml tests --ignore-glob='tests/test_ray*.py'
+          else
+            uv run --no-sync pytest -v --cov=docling_jobkit --cov-report=xml tests
+          fi
+      - name: Stop RQ worker
+        if: ${{ always() && env.WORKER_PID != '' }}
+        run: kill "$WORKER_PID"

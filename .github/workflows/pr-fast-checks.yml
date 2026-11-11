@@ -22,6 +22,7 @@ env:
 
 jobs:
   lint-and-type:
+    if: ${{ github.event.pull_request.base.ref != 'neurwerk/3.6' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -60,3 +61,11 @@ jobs:
             --repo-root "$PWD" \
             --base-ref HEAD \
             --head-ref "${{ steps.pr-merge.outputs.merge_tree }}"
+
+  legacy-base-checks:
+    if: ${{ github.event.pull_request.base.ref == 'neurwerk/3.6' }}
+    # PR-target checks execute only the immutable trusted base; the existing
+    # pull_request workflow separately checks the PR merge tree without secrets.
+    uses: ./.github/workflows/legacy-release-checks.yml
+    permissions:
+      contents: read
