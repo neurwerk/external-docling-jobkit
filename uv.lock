@@ -1367,7 +1367,7 @@ wheels = [
 
 [[package]]
 name = "docling-jobkit"
-version = "3.6.0"
+version = "3.6.0+neurwerk.native1"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
