@@ -65,7 +65,7 @@ jobs:
   legacy-base-checks:
     if: ${{ github.event.pull_request.base.ref == 'neurwerk/3.6' }}
     # PR-target checks execute only the immutable trusted base; the existing
-    # pull_request workflow separately checks the PR merge tree without secrets.
+    # pull_request workflow separately checks the PR merge tree.
     uses: ./.github/workflows/legacy-release-checks.yml
     permissions:
       contents: read
